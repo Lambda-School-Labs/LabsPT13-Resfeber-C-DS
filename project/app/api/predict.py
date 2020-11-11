@@ -7,6 +7,10 @@ from pydantic import BaseModel, Field, validator
 
 import os 
 from dotenv import load_dotenv
+import pandas as pd
+import datetime
+from sodapy import Socrata
+from datetime import timedelta
 
 
 log = logging.getLogger(__name__)
@@ -57,6 +61,7 @@ async def predict(item: Item):
         'prediction': y_pred,
         'probability': y_pred_proba
     }
+
 
 @router.post('/state_covid')
 async def covid_by_state(state: dict):
