@@ -5,6 +5,14 @@ from fastapi import APIRouter
 import pandas as pd
 from pydantic import BaseModel, Field, validator
 
+import os 
+from dotenv import load_dotenv
+import pandas as pd
+import datetime
+from sodapy import Socrata
+from datetime import timedelta
+
+
 log = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -53,3 +61,25 @@ async def predict(item: Item):
         'prediction': y_pred,
         'probability': y_pred_proba
     }
+
+
+@router.post('/state_covid')
+async def covid_by_state(state: dict):
+    MY_APP_TOKEN = os.getenv("COVID_API")
+    client = Socrata('data.cdc.gov',MY_APP_TOKEN)
+    q = '''
+    SELECT * 
+    ORDER BY submission_date DESC
+    LIMIT 1000
+    '''
+    results = client.get("9mfq-cb36", query = q)
+    df = pd.DataFrame.from_records(results)
+    state_requested = pd.DataFrame([state])
+    state = state_requested.iloc[0][0]
+
+    last_week = str(datetime.date.today() - timedelta(days = 7))
+
+    # filter df for above info and get the total
+    new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
+    new_cases= new['new_case'].astype('float').sum()
+    return new_cases
