@@ -1,7 +1,61 @@
 from sodapy import Socrata
 
-# Execute a request to the CDC Covid API
-def req_cdc_covid_dat(state, dte):
+# Population by US state
+state_pop = {
+  "AK": 731545,
+  "AL": 4903185,
+  "AR": 3017825,
+  "AZ": 7278717,
+  "CA": 39512223,
+  "CN": 3565287,
+  "CO": 5758736,
+  "DC": 705749,
+  "DE": 973764,
+  "FL": 21477737,
+  "GA": 10617423,
+  "HI": 1415872,
+  "IA": 3155070,
+  "ID": 1787065,
+  "IL": 12671821,
+  "IN": 6732219,
+  "KS": 2913314,
+  "KY": 4467673,
+  "LA": 4648794,
+  "MA": 6949503,
+  "MD": 6045680,
+  "MI": 9986857,
+  "MN": 1344212,
+  "MN": 5639632,
+  "MO": 6137428,
+  "MS": 2976149,
+  "MT": 1068778,
+  "NC": 10488084,
+  "ND": 762062,
+  "NE": 1934408,
+  "NH": 1359711,
+  "NJ": 8882190,
+  "NM": 2096829,
+  "NV": 3080156,
+  "NY": 19453561,
+  "OH": 11689100,
+  "OK": 3956971,
+  "OR": 4217737,
+  "PA": 12801989,
+  "RI": 1059361,
+  "SC": 5148714,
+  "SD": 884659,
+  "TN": 6833174,
+  "TX": 28995881,
+  "UT": 3205958,
+  "VA": 8535519,
+  "VT": 623989,
+  "WA": 7614893,
+  "WI": 5822434,
+  "WV": 1792147,
+  "WY": 578759}
+
+# Execute a GET request to the CDC Covid API to retrieve state level covid details
+def req_cdc_covid_dat(ste, dte):
     """
     req_cdc_covid_dat makes an HTTP GET request to the 
     CDC Covid API and accepts a response
@@ -24,21 +78,22 @@ def req_cdc_covid_dat(state, dte):
         "error":      "an error occurred"
     }
 
+    # Fetch the Covid API key from an environment variable
+    MY_APP_TOKEN = os.getenv("COVID_API")
+
     # Do we have a valid state value
-    if state not in state_pop:
+    if ste not in state_pop:
         # invalid state parameter
-        ret_dict["error"] = "invalid date value: " + state
+        ret_dict["error"] = "invalid date value: " + ste
         return ret_dict
 
     # Construct a date/time string
     date_time = dte.strftime("%Y-%m-%d") + "T00:00:00.000"
 
-    # Grab the API Key from an environment variable
-    MY_APP_TOKEN = os.getenv("COVID_API")
     # Stand up an API client object
-    client = Socrata('data.cdc.gov',MY_APP_TOKEN)
+    client = Socrata('data.cdc.gov', MY_APP_TOKEN)
     # Fetch data from the API
-    results = client.get("9mfq-cb36", state=state, submission_date=date_time)
+    results = client.get("9mfq-cb36", state=ste, submission_date=date_time)
 
     # Do we have results?
     if len(results) == 0:
@@ -49,60 +104,9 @@ def req_cdc_covid_dat(state, dte):
     # Return results
     ret_dict["ok"]       = True
     ret_dict["error"]    = None
-    ret_dict["new_case"] = results["new_case"]
-    ret_dict["data"]     = results
+    ret_dict["new_case"] = results[0]["new_case"]
+    ret_dict["data"]     = results[0]
     return ret_dict
 
-# Static dictionary of state populations
-state_pop = {"AK": "731545",
-"AL": "4903185",
-"AR": "3017825",
-"AZ": "7278717",
-"CA": "39512223",
-"CN": "3565287",
-"CO": "5758736",
-"DC": "705749",
-"DE": "973764",
-"FL": "21477737",
-"GA": "10617423",
-"HI": "1415872",
-"IA": "3155070",
-"ID": "1787065",
-"IL": "12671821",
-"IN": "6732219",
-"KS": "2913314",
-"KY": "4467673",
-"LA": "4648794",
-"MA": "6949503",
-"MD": "6045680",
-"MI": "9986857",
-"MN": "1344212",
-"MN": "5639632",
-"MO": "6137428",
-"MS": "2976149",
-"MT": "1068778",
-"NC": "10488084",
-"ND": "762062",
-"NE": "1934408",
-"NH": "1359711",
-"NJ": "8882190",
-"NM": "2096829",
-"NV": "3080156",
-"NY": "19453561",
-"OH": "11689100",
-"OK": "3956971",
-"OR": "4217737",
-"PA": "12801989",
-"RI": "1059361",
-"SC": "5148714",
-"SD": "884659",
-"TN": "6833174",
-"TX": "28995881",
-"UT": "3205958",
-"VA": "8535519",
-"VT": "623989",
-"WA": "7614893",
-"WI": "5822434",
-"WV": "1792147",
-"WY": "578759"}
+
 

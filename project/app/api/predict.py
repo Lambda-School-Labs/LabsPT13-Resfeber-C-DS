@@ -83,3 +83,10 @@ async def covid_by_state(state: dict):
     new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
+
+@router.get('/gas_price_state')
+async def get_gas_price_state(state: str):
+    ret_dict = get_gas_price_state(state)
+
+    return ret_dict
+
