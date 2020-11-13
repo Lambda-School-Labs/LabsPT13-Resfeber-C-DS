@@ -14,8 +14,7 @@ def get_gas_price_state(ste):
   conn = http.client.HTTPSConnection("api.collectapi.com")
   headers = {
       'content-type': "application/json",
-      'authorization': "apikey " + MY_GAS_PRICE_API_TOKEN
-      # 'authorization': "apikey 4UOowiehxUBAIpKW7urqFe:1MiseQe8cyBvfROjBTLagh"
+      'authorization': "MY_GAS_PRICE_API_TOKEN"
       }
 
   # Execute the HTTP GET request
