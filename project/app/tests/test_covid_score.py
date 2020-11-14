@@ -4,33 +4,12 @@ from app.main import app
 
 client = TestClient(app)
 
-
 def test_req_cdc_covid_dat():
     """Return 200 Success when input is valid."""
-    response = client.post(
-        '/predict',
-        json={
-            'x1': 3.14,
-            'x2': -42,
-            'x3': 'banjo'
-        }
-    )
-    body = response.json()
+    response = client.get('/covid_score_state/GA')
     assert response.status_code == 200
-    assert body['prediction'] in [True, False]
-    assert 0.50 <= body['probability'] < 1
-
 
 def test_invalid_input():
-    """Return 422 Validation Error when x1 is negative."""
-    response = client.post(
-        '/predict',
-        json={
-            'x1': -3.14,
-            'x2': -42,
-            'x3': 'banjo'
-        }
-    )
-    body = response.json()
-    assert response.status_code == 422
-    assert 'x1' in body['detail'][0]['loc']
+    """Return 500 Validation Error when the state abbreviation is invalid."""
+    response = client.get('/covid_score_state/XX')
+    assert response.status_code == 500
