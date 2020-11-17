@@ -134,6 +134,7 @@ def gen_covid_score(ste):
   ret_dict = {
       "ok":    False,
       "score": None,
+      "delta": None,
       "color": None,
       "data":  None,
       "error": "an error occurred"
@@ -188,6 +189,7 @@ def gen_covid_score(ste):
 
   # Calculate the delta in new cases per 100000 
   delta = (end_ncases_pcap - start_ncases_pcap)/start_ncases_pcap
+  ret_dict["delta"] = delta
 
   # Generate a score
   if delta < THRESHOLD_LOW:
@@ -210,6 +212,27 @@ def gen_covid_score(ste):
   
   # Return 
   return ret_dict
+
+# Generate score calculations for every state
+def calc_covid_deltas():
+    ret_map = {}
+
+    # Iterate through the set of states
+    for st in state_pop.keys():
+        # Generate the covid score
+        fn_map = gen_covid_score(st)
+
+        # Was there an error the current function call
+        if not fn_map["ok"]:
+            ret_map[st] = None
+            continue
+
+        # Assign the calculated delta value
+        ret_map[st] = fn_map["delta"]
+
+    # Return the dictionary mapping states (e.g "GA") to their 
+    # delta calculation (e.g. 0.041)
+    return ret_map
 
 # Route to return a covid score to the caller
 @router.get('/covid_score_state/{state}')
