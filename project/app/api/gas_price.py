@@ -8,7 +8,7 @@ def get_gas_price_state(ste):
      Get the states current gas price.
   """
 
-  # Fetch the Covid API key from an environment variable
+  # Fetch the Gas API key from an environment variable
   MY_GAS_PRICE_API_TOKEN = os.getenv("GAS_API")
 
   # Set up an HTTP connection object
