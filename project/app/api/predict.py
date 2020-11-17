@@ -11,7 +11,8 @@ import pandas as pd
 import datetime
 from sodapy import Socrata
 from datetime import timedelta
-
+import sys
+from api import gas_price
 
 log = logging.getLogger(__name__)
 router = APIRouter()

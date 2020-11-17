@@ -1,10 +1,11 @@
 import http.client
 import json
 
+
 # Execute a request to the CDC Covid API
 def get_gas_price_state(ste):
   """
-    Awesome function
+     Get the states current gas price.
   """
 
   # Fetch the Covid API key from an environment variable
