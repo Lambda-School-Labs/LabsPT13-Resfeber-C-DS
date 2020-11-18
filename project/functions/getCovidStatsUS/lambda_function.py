@@ -123,5 +123,3 @@ def lambda_handler(event, context):
     ret_dict['body'] = json.dumps(f"INFO: finished inserting: {len(vals_arr)} rows")
     return ret_dict
 
-# Test the function locally
-print(lambda_handler({"date": "2020-11-01"}, {}))
