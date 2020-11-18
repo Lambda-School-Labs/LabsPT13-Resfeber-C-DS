@@ -4,7 +4,7 @@ import json
 import psycopg2
 from psycopg2.extras import execute_values
 from sodapy import Socrata
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 def lambda_handler(event, context):
     # Set up working variables
@@ -53,8 +53,17 @@ def lambda_handler(event, context):
         ret_dict['body'] = json.dumps('error connecting to the Postgres database')
         return ret_dict
 
+    # Missing the date parameter?
+    req_date = ""
+    if date not in event:
+        # yes: date value is missing, fetch Covid API data for yesterday 
+        yesterday = date.today() - timedelta(days = 1)
+        req_date = yesterday.strftime("%Y-%m-%d")
+    else:
+        # no: date value is present, fetch Covid API date using the given event 'date' value
+        req_date = event["date"]
+    
     # Validate the date parameter (e.g. "2020-11-01")
-    req_date = event["date"]
     if len(req_date) != 10:
         # error: invalid date parameter
         print("error: invalid date parameter", file=sys.stderr)
