@@ -55,8 +55,8 @@ def lambda_handler(event, context):
 
     # Missing the date parameter?
     req_date = ""
-    if date not in event:
-        # yes: date value is missing, fetch Covid API data for yesterday 
+    if "date" not in event:
+        # yes: "date" key value is missing, fetch Covid API data for yesterday 
         yesterday = date.today() - timedelta(days = 1)
         req_date = yesterday.strftime("%Y-%m-%d")
     else:
@@ -104,6 +104,7 @@ def lambda_handler(event, context):
     if len(vals_arr) != 0:
         # yes: attempt the database insert
         try:
+            print (f"INFO: attempting to insert {len(vals_arr)} rows into the database for requested date: {req_date}", file=sys.stderr)
             # stand up a db cursor
             cursor = connection.cursor()
             # execute the insert for multiple rows
@@ -127,8 +128,8 @@ def lambda_handler(event, context):
             return ret_dict
 
     # Function completed processing
-    print (f"INFO: finished inserting: {len(vals_arr)} rows", file=sys.stderr)
+    print (f"INFO: finished processing: {len(vals_arr)} rows", file=sys.stderr)
+    print (f"INFO: NOTE! - duplicate state/date rows will be ignored", file=sys.stderr)
     ret_dict['statusCode'] = 200
-    ret_dict['body'] = json.dumps(f"INFO: finished inserting: {len(vals_arr)} rows")
+    ret_dict['body'] = json.dumps(f"INFO: finished processing: {len(vals_arr)} rows")
     return ret_dict
-
