@@ -86,15 +86,15 @@ async def covid_by_state(state: dict):
 
 @router.get('/fuel')
 def get_gas_price_state(ste):
-  """
+    """
     Get the states current gas price.
 
-  """
-
+    """
+  MY_APP_TOKEN = os.getenv("GAS_API")
   conn = http.client.HTTPSConnection("api.collectapi.com")
   headers = {
       'content-type': "application/json",
-      'authorization': "apikey 4UOowiehxUBAIpKW7urqFe:1MiseQe8cyBvfROjBTLagh"
+      'authorization': "MY_APP_TOKEN"
       }
 
 
