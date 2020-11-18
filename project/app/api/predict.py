@@ -11,8 +11,7 @@ import pandas as pd
 import datetime
 from sodapy import Socrata
 from datetime import timedelta
-import sys
-from api import gas_price
+
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -85,9 +84,31 @@ async def covid_by_state(state: dict):
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
 
-@router.get('/gas_price_state')
-async def get_gas_price_state(state: str):
-    ret_dict = get_gas_price_state(state)
+@router.get('/fuel')
+def get_gas_price_state(ste):
+  """
+    Get the states current gas price.
 
-    return ret_dict
+  """
+
+  conn = http.client.HTTPSConnection("api.collectapi.com")
+  headers = {
+      'content-type': "application/json",
+      'authorization': "apikey 4UOowiehxUBAIpKW7urqFe:1MiseQe8cyBvfROjBTLagh"
+      }
+
+
+ 
+  conn.request("GET", "/gasPrice/stateUsaPrice?state=" + ste , headers=headers)
+  res = conn.getresponse()
+  data = res.read()
+
+
+  data_json = data.decode("utf-8")
+
+  data_dict = json.loads(data_json)
+
+
+
+  return data_dict['result']['state']
 
