@@ -96,7 +96,7 @@ def get_gas_price_state(ste):
     headers = {
         'content-type': "application/json",
         'authorization': "MY_APP_TOKEN"
-}
+    }
 
 
     # Execute the HTTP GET request
