@@ -90,25 +90,26 @@ def get_gas_price_state(ste):
     Get the states current gas price.
 
     """
-  MY_APP_TOKEN = os.getenv("GAS_API")
-  conn = http.client.HTTPSConnection("api.collectapi.com")
-  headers = {
-      'content-type': "application/json",
-      'authorization': "MY_APP_TOKEN"
-      }
+    # Set up an HTTP connection object
+    MY_APP_TOKEN = os.getenv("GAS_API")
+    conn = http.client.HTTPSConnection("api.collectapi.com")
+    headers = {
+        'content-type': "application/json",
+        'authorization': "MY_APP_TOKEN"
+}
 
 
- 
-  conn.request("GET", "/gasPrice/stateUsaPrice?state=" + ste , headers=headers)
-  res = conn.getresponse()
-  data = res.read()
+    # Execute the HTTP GET request
+    conn.request("GET", "/gasPrice/stateUsaPrice?state=" + ste , headers=headers)
+    res = conn.getresponse()
+    data = res.read()
+
+    # Convert the byte data to a json string
+    data_json = data.decode("utf-8")
+    # Load the json string into a python dict
+    data_dict = json.loads(data_json)
 
 
-  data_json = data.decode("utf-8")
-
-  data_dict = json.loads(data_json)
-
-
-
-  return data_dict['result']['state']
+    # Return the state level gas prices
+    return data_dict['result']['state']
 
