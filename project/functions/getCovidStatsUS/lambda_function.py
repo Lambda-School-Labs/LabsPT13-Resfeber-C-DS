@@ -7,6 +7,19 @@ from sodapy import Socrata
 from datetime import datetime, date, timedelta
 
 def lambda_handler(event, context):
+    """
+    lambda_handler executes the logic for the getCovidStatsUS AWS Lambda function. The logic:
+      * Accepts an optional date parameter in the form of a json document: e.g. {"date": "2020-01-15"}
+      * If no valid date is passed, then "yesterday's" date is assume
+      * Connects to a Postgres database
+      * Makes a REST API call to a CDC Covid API
+      * Fetches Covid data for US states and districts for the given date
+      * Inserts that data into a database table
+      * NOTE: if a row exists for that particular state/date the insert will not be executed
+    """
+    # Print out the inbound event parameters
+    print(f"INFO: Starting function with inbound event: {event}", file=sys.stderr)
+
     # Set up working variables
     ret_dict = {'statusCode': 200, 'body': json.dumps('default message')}
     
@@ -40,12 +53,12 @@ def lambda_handler(event, context):
     try:
         cursor = connection.cursor()
         # Print PostgreSQL Connection properties
-        print(f"{connection.get_dsn_parameters()}\n", file=sys.stderr)
+        print(f"INFO: Connecting to the database with these credentials: {connection.get_dsn_parameters()}\n", file=sys.stderr)
 
         # Print PostgreSQL version
         cursor.execute("SELECT version();")
         record = cursor.fetchone()
-        print(f"You are connected to - {record}\n", file=sys.stderr)
+        print(f"INFO: Successfully connected to the database: {record}\n", file=sys.stderr)
 
     except (Exception, psycopg2.Error) as error :
         print (f"Error while connecting to PostgreSQL: {error}", file=sys.stderr)
@@ -66,7 +79,7 @@ def lambda_handler(event, context):
     # Validate the date parameter (e.g. "2020-11-01")
     if len(req_date) != 10:
         # error: invalid date parameter
-        print("error: invalid date parameter", file=sys.stderr)
+        print(f"ERROR: invalid date parameter: {req_date} with length: {len(req_date)}", file=sys.stderr)
         
         ret_dict['statusCode'] = 400
         ret_dict['body'] = json.dumps('error: invalid date parameter')
@@ -74,6 +87,7 @@ def lambda_handler(event, context):
     
     # Construct a date/time string
     date_time = req_date + "T00:00:00.000"
+    print(f"INFO: fetching covid data for this date: {date_time}", file=sys.stderr)
     
     # Stand up an API client object
     client = Socrata('data.cdc.gov', MY_APP_TOKEN)
@@ -85,7 +99,7 @@ def lambda_handler(event, context):
           "VALUES %s ON CONFLICT (state, date) DO NOTHING"
     
     # Iterate through the results
-    print(f"INFO: Number data points returned by the CDC API: {len(results)}", file=sys.stderr)
+    print(f"INFO: Number of covid data points returned by the CDC API: {len(results)}", file=sys.stderr)
     vals_arr = []
     for rslt in results:
         tmp_tpl = (
@@ -104,7 +118,7 @@ def lambda_handler(event, context):
     if len(vals_arr) != 0:
         # yes: attempt the database insert
         try:
-            print (f"INFO: attempting to insert {len(vals_arr)} rows into the database for requested date: {req_date}", file=sys.stderr)
+            print (f"INFO: attempting to insert {len(vals_arr)} rows into the database for requested date: {date_time}", file=sys.stderr)
             # stand up a db cursor
             cursor = connection.cursor()
             # execute the insert for multiple rows
@@ -133,3 +147,4 @@ def lambda_handler(event, context):
     ret_dict['statusCode'] = 200
     ret_dict['body'] = json.dumps(f"INFO: finished processing: {len(vals_arr)} rows")
     return ret_dict
+
