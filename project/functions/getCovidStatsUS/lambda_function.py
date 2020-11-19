@@ -45,7 +45,7 @@ def lambda_handler(event, context):
     # Configure a connection object
     connection = psycopg2.connect(user = "postgres",
                                   password = PG_DB_PASSWORD,
-                                  host = "labspt13-res.cguagfajgk6j.us-west-1.rds.amazonaws.com",
+                                  host = "labspt13-res.c39zgmn8rrtf.us-east-2.rds.amazonaws.com",
                                   port = "5432",
                                   database = "resfeber")
 
