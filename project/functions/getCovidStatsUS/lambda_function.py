@@ -68,13 +68,23 @@ def lambda_handler(event, context):
 
     # Missing the date parameter?
     req_date = ""
-    if "date" not in event:
+    has_date_param = False
+    if "date" in event:
+        # yes: the event object has a date key/value pair
+        has_date_param = True
+        req_date = event["date"]
+    elif "body" in event:
+        # yes: the event object has a body element
+        # does the body element include a date key/value pair?
+        if "date" in event["body"]:
+            has_date_param = True
+            req_date = event["body"]["date"]
+
+    # Has the function been passed a date parameter?
+    if not has_date_param:
         # yes: "date" key value is missing, fetch Covid API data for yesterday 
         yesterday = date.today() - timedelta(days = 1)  # 1 day from the current day (utc)
         req_date = yesterday.strftime("%Y-%m-%d")
-    else:
-        # no: date value is present, fetch Covid API date using the given event 'date' value
-        req_date = event["date"]
     
     # Validate the date parameter (e.g. "2020-11-01")
     if len(req_date) != 10:
