@@ -70,7 +70,7 @@ def lambda_handler(event, context):
     req_date = ""
     if "date" not in event:
         # yes: "date" key value is missing, fetch Covid API data for yesterday 
-        yesterday = date.today() - timedelta(days = 1)
+        yesterday = date.today() - timedelta(days = 1)  # 1 day from the current day (utc)
         req_date = yesterday.strftime("%Y-%m-%d")
     else:
         # no: date value is present, fetch Covid API date using the given event 'date' value
