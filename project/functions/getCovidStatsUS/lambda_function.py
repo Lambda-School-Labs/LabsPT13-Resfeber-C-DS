@@ -77,11 +77,12 @@ def lambda_handler(event, context):
         # yes: the event object has a body element
         # parse the body string into a dict and look for a date parameter
         try:
+            print(f"DEBUG: event['body'] is: {event['body']} with type: {type(event['body'])}")
             tmp_dict = json.loads(event["body"])
             # is a date parameter included in the body?
             if "date" in tmp_dict:
                 has_date_param = True
-                req_date = event["body"]["date"]
+                req_date = tmp_dict['date']
         except:
             # error occurred parsing the request body content
             print("ERROR: error parsing the event['body'] searching for a 'date' parameter")
@@ -163,4 +164,3 @@ def lambda_handler(event, context):
     ret_dict['statusCode'] = 200
     ret_dict['body'] = json.dumps(f"INFO: finished processing: {len(vals_arr)} rows")
     return ret_dict
-
