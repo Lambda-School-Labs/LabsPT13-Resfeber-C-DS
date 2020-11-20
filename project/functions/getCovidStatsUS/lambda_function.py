@@ -78,6 +78,7 @@ def lambda_handler(event, context):
         # does the body element include a date key/value pair?
         if "date" in event["body"]:
             has_date_param = True
+            print(f"DEBUG: event.body.date has a type: {type(event["body"]["date"])}")
             req_date = event["body"]["date"]
 
     # Has the function been passed a date parameter?
