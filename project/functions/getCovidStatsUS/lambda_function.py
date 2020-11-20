@@ -67,19 +67,24 @@ def lambda_handler(event, context):
         return ret_dict
 
     # Missing the date parameter?
-    req_date = ""
-    has_date_param = False
+    req_date       = ""
+    has_date_param = False  # flag indicating a date parameter has been found
     if "date" in event:
         # yes: the event object has a date key/value pair
         has_date_param = True
         req_date = event["date"]
     elif "body" in event:
         # yes: the event object has a body element
-        # does the body element include a date key/value pair?
-        if "date" in event["body"]:
-            has_date_param = True
-            print(f"DEBUG: event.body.date has a type: {type(event["body"]["date"])}")
-            req_date = event["body"]["date"]
+        # parse the body string into a dict and look for a date parameter
+        try:
+            tmp_dict = json.loads(event["body"])
+            # is a date parameter included in the body?
+            if "date" in tmp_dict:
+                has_date_param = True
+                req_date = event["body"]["date"]
+        except:
+            # error occurred parsing the request body content
+            print("ERROR: error parsing the event['body'] searching for a 'date' parameter")
 
     # Has the function been passed a date parameter?
     if not has_date_param:
