@@ -1,7 +1,11 @@
+import os
+import psycopg2
 from fastapi import APIRouter, HTTPException
 import pandas as pd
 import plotly.express as px
 from sodapy import Socrata
+from datetime import datetime, date, timedelta
+import re
 
 router = APIRouter()
 
@@ -59,15 +63,15 @@ state_pop = {
     "WV": 1792147,
     "WY": 578759}
 
-# Execute a GET request to the CDC Covid API to retrieve state level covid details
+# Return Covid data for a given state and date from the database
 def req_cdc_covid_dat(ste, dte):
     """
-    req_cdc_covid_dat makes an HTTP GET request to the 
-    CDC Covid API and accepts a response
+    req_cdc_covid_dat return Covid data for a given state and date
+    from the backend data science database
 
     Parameters:
         "state": the targeted state (e.g. "CA")
-        "date":  the date of the covid data requested
+        "date":  the string date of the covid data requested (format: YYYY-MM-DD)
 
     Returns:
         "ok":       boolean indicating a successful request
@@ -83,135 +87,173 @@ def req_cdc_covid_dat(ste, dte):
         "error":      "an error occurred"
     }
 
-    # Do we have a valid state value
-    if ste not in state_pop:
-        # invalid state parameter
-        ret_dict["error"] = "invalid date value: " + ste
+    # Read database configuration from environment variables
+    DS_DB_HOST      = os.getenv("DS_DB_HOST")
+    DS_DB_PORT      = os.getenv("DS_DB_PORT")
+    DS_DB_NAME      = os.getenv("DS_DB_NAME")
+    DS_DB_USER      = os.getenv("DS_DB_USER")
+    DS_DB_PASSWORD  = os.getenv("DS_DB_PASSWORD")
+
+    # Missing database configuration?
+    if len(DS_DB_HOST) == 0   or        \
+       len(DS_DB_NAME) == 0     or      \
+       len(DS_DB_USER) == 0     or      \
+       len(DS_DB_PASSWORD) == 0:
+       # missing config
+       ret_dict["error"] = "missing database configuration"
+
+       return ret_dict
+
+    # Configure a connection object
+    connection = psycopg2.connect(user =        DS_DB_USER,
+                                  password =    DS_DB_PASSWORD,
+                                  host =        DS_DB_HOST,
+                                  port =        DS_DB_PORT,
+                                  database =    DS_DB_NAME)
+
+    # Test the database connection
+    try:
+        cursor = connection.cursor()
+        # Print PostgreSQL Connection properties
+        print(f"INFO: Connecting to the database with these credentials: {connection.get_dsn_parameters()}\n")
+
+        # Print PostgreSQL version
+        cursor.execute("SELECT version();")
+        record = cursor.fetchone()
+        print(f"INFO: Successfully connected to the database: {record}\n")
+
+    except (Exception, psycopg2.Error) as error :
+        print (f"ERROR: error while connecting to PostgreSQL: {error}")
+        ret_dict["error"] = "error connecting to the database"
         return ret_dict
 
-    # Construct a date/time string
-    date_time = dte.strftime("%Y-%m-%d") + "T00:00:00.000"
+    # Do we have a valid state value?
+    if ste not in state_pop:
+        # invalid state parameter
+        ret_dict["error"] = "invalid state parameter: " + ste
+        return ret_dict
 
-    # Grab the API Key from an environment variable (in the FastAPI code)
-    MY_APP_TOKEN = os.getenv("COVID_API") 
+    # Do we have a valid date value?
+    if re.match(r"^\d{4}\-\d{2}\-\d{2}", dte) == None:
+        # dte parameter value is not valid
+        ret_dict["error"] = "invalid date parameter: " + dte
+        return ret_dict
 
-    # Stand up an API client object
-    client = Socrata('data.cdc.gov', MY_APP_TOKEN)
-    # Fetch data from the API
-    results = client.get("9mfq-cb36", state=ste, submission_date=date_time)
+    # Query the database
+    sql = "SELECT * FROM state_covid_stats WHERE state = %s AND date = %s"
+    cvd_dict = {}
+    try:
+        cursor.execute(sql, )
+        cvd_row = cursor.fetchone()
+        cvd_dict["new_case"] = cvd_row[3]
+        cvd_dict["data"]     = cvd_row[5]
 
-    # Do we have results?
-    if len(results) == 0:
-        # nothing returned - error condition
-        ret_dict["error"] = "no data returned"
+    except (Exception, psycopg2.Error) as error:
+        ret_dict["error"] = f"error fetching covid data for state: {ste} date: {dte}"
         return ret_dict
     
     # Return results
     ret_dict["ok"]       = True
     ret_dict["error"]    = None
-    ret_dict["new_case"] = results[0]["new_case"]
-    ret_dict["data"]     = results[0]
+    ret_dict["new_case"] = cvd_dict[0]["new_case"]
+    ret_dict["data"]     = cvd_dict[0]
     return ret_dict
 
-# Generate a Covid "score" for a given state
-def gen_covid_score(ste):
-  """
-  gen_covid_score generates a covid score using
-  CDC covid data obtained via a call to
-  the req_cdc_covid_dat function 
+# Return Covid data for a given state and date from the database
+def req_cdc_covid_dat(ste, dte):
+    """
+    req_cdc_covid_dat return Covid data for a given state and date
+    from the backend data science database
 
-  Parameters:
-      "state": the targeted state (e.g. "CA")
+    Parameters:
+        "state": the targeted state (e.g. "CA")
+        "date":  the string date of the covid data requested (format: YYYY-MM-DD)
 
-  Returns:
-      "ok":       boolean indicating a successful request
-      "score":    the state's covid score (0,1,2)
-      "color":    the state's covid score as a color ("green", "yellow", "red")
-      "data":     CDC covid API data
-      "error":    error message (if applicable)
-  """
-  # Define a return object
-  ret_dict = {
-      "ok":    False,
-      "score": None,
-      "delta": None,
-      "color": None,
-      "data":  None,
-      "error": "an error occurred"
-  }
+    Returns:
+        "ok":       boolean indicating a successful request
+        "new_case": new cases logged in the API response
+        "data":     copy of the CDC API response
+        "error":    error message (if applicable)  
+    """
+    # Define a return object
+    ret_dict = {
+        "ok":         False,
+        "new_case":   None,
+        "data":       None,
+        "error":      "an error occurred"
+    }
 
-  # Do we have a valid state value
-  if ste not in state_pop:
-      # invalid state parameter
-      ret_dict["error"] = "invalid date value: " + ste
-      return ret_dict
+    # Read database configuration from environment variables
+    DS_DB_HOST      = os.getenv("DS_DB_HOST")
+    DS_DB_PORT      = os.getenv("DS_DB_PORT")
+    DS_DB_NAME      = os.getenv("DS_DB_NAME")
+    DS_DB_USER      = os.getenv("DS_DB_USER")
+    DS_DB_PASSWORD  = os.getenv("DS_DB_PASSWORD")
 
-  # Read configuration into variables from environment variables
-  INT_START         = os.getenv("INT_START")
-  INT_END           = os.getenv("INT_END")
-  THRESHOLD_LOW     = os.getenv("THRESHOLD_LOW")
-  THRESHOLD_HIGH    = os.getenv("THRESHOLD_HIGH")
+    # Missing database configuration?
+    if len(DS_DB_HOST) == 0   or        \
+       len(DS_DB_NAME) == 0     or      \
+       len(DS_DB_USER) == 0     or      \
+       len(DS_DB_PASSWORD) == 0:
+       # missing config
+       ret_dict["error"] = "missing database configuration"
 
-  # Generate dates for the start and end of the time interval
-  req_try = True
-  err_ctr = 0
-  int_st  = INT_START
-  int_ed  = INT_END
-  while (req_try and err_ctr < 5):
-    req_try = False  # Assume we get an error calling the Covid API
+       return ret_dict
 
-    # Generate the start and end date interval
-    intv_start = datetime.today() - timedelta(days=int_st)
-    intv_end   = datetime.today() - timedelta(days=int_ed)
+    # Configure a connection object
+    connection = psycopg2.connect(user =        DS_DB_USER,
+                                  password =    DS_DB_PASSWORD,
+                                  host =        DS_DB_HOST,
+                                  port =        DS_DB_PORT,
+                                  database =    DS_DB_NAME)
 
-    # Fetch new cases associated with the interval dates
-    intv_start_ncases = req_cdc_covid_dat(ste, intv_start)
-    intv_end_ncases   = req_cdc_covid_dat(ste, intv_end)
+    # Test the database connection
+    try:
+        cursor = connection.cursor()
+        # Print PostgreSQL Connection properties
+        print(f"INFO: Connecting to the database with these credentials: {connection.get_dsn_parameters()}\n")
 
-    # Error fetching from the Covid API?
-    if not intv_start_ncases["ok"] or not intv_end_ncases["ok"]:
-      # Error occurred, adjust look up period by 1 day and try again
-      req_try = True          # error occurred keep trying
-      err_ctr = err_ctr + 1   # increment the error try counter
-      int_st  = int_st  + 1   # increment the start date lookback value
-      int_ed  = int_ed  + 1   # increment the end date lookback value
-      print("INFO: Covid API request failed. Attempting retry")
+        # Print PostgreSQL version
+        cursor.execute("SELECT version();")
+        record = cursor.fetchone()
+        print(f"INFO: Successfully connected to the database: {record}\n")
 
-  # Outstanding error calling the Covid API?
-  if not intv_start_ncases["ok"] or not intv_end_ncases["ok"]:
-    # yes: can't get Covid data at this time
-    ret_dict["error"] = "error fetching Covid data; no data at this time"
+    except (Exception, psycopg2.Error) as error :
+        print (f"ERROR: error while connecting to PostgreSQL: {error}")
+        ret_dict["error"] = "error connecting to the database"
+        return ret_dict
+
+    # Do we have a valid state value?
+    if ste not in state_pop:
+        # invalid state parameter
+        ret_dict["error"] = "invalid state parameter: " + ste
+        return ret_dict
+
+    # Do we have a valid date value?
+    if re.match(r"^\d{4}\-\d{2}\-\d{2}", dte) == None:
+        # dte parameter value is not valid
+        ret_dict["error"] = "invalid date parameter: " + dte
+        return ret_dict
+
+    # Query the database
+    sql = "SELECT * FROM state_covid_stats WHERE state = %s AND date = %s"
+    cvd_dict = {}
+    try:
+        cursor.execute(sql, (ste, dte))
+        cvd_row = cursor.fetchone()
+        cvd_dict["new_case"] = cvd_row[3]
+        cvd_dict["data"]     = cvd_row[5]
+
+    except (Exception, psycopg2.Error) as error:
+        ret_dict["error"] = f"error fetching covid data for state: {ste} date: {dte}"
+        return ret_dict
+    
+    # Return results
+    ret_dict["ok"]       = True
+    ret_dict["error"]    = None
+    ret_dict["new_case"] = cvd_dict["new_case"]
+    ret_dict["data"]     = cvd_dict["data"]
     return ret_dict
-
-  # Calculate new cases per 100,000 people
-  start_ncases_pcap = float(intv_start_ncases["new_case"])/float(state_pop[ste])*100000
-  end_ncases_pcap   = float(intv_end_ncases["new_case"])/float(state_pop[ste])*100000
-
-  # Calculate the delta in new cases per 100000 
-  delta = (end_ncases_pcap - start_ncases_pcap)/start_ncases_pcap
-  ret_dict["delta"] = delta
-
-  # Generate a score
-  if delta < THRESHOLD_LOW:
-      ret_dict["ok"] = True
-      ret_dict["score"] = 0
-      ret_dict["color"] = "green"
-  elif delta < THRESHOLD_HIGH:
-      ret_dict["ok"] = True
-      ret_dict["score"] = 1
-      ret_dict["color"] = "yellow"
-  else:
-      ret_dict["ok"] = True
-      ret_dict["score"] = 2
-      ret_dict["color"] = "red"
-
-  ret_dict["error"] = None
-      
-  # Assign the most recent CDC Covid API data
-  ret_dict["data"] = {"start": intv_start_ncases["data"], "end": intv_end_ncases["data"]}
-  
-  # Return 
-  return ret_dict
 
 # Generate score calculations for every state
 def calc_covid_deltas():
