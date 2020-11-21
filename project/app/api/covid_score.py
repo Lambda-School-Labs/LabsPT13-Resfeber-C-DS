@@ -81,102 +81,6 @@ def req_cdc_covid_dat(ste, dte):
     """
     # Define a return object
     ret_dict = {
-        "ok": False,
-        "new_case":   None,
-        "data":       None,
-        "error":      "an error occurred"
-    }
-
-    # Read database configuration from environment variables
-    DS_DB_HOST      = os.getenv("DS_DB_HOST")
-    DS_DB_PORT      = os.getenv("DS_DB_PORT")
-    DS_DB_NAME      = os.getenv("DS_DB_NAME")
-    DS_DB_USER      = os.getenv("DS_DB_USER")
-    DS_DB_PASSWORD  = os.getenv("DS_DB_PASSWORD")
-
-    # Missing database configuration?
-    if len(DS_DB_HOST) == 0   or        \
-       len(DS_DB_NAME) == 0     or      \
-       len(DS_DB_USER) == 0     or      \
-       len(DS_DB_PASSWORD) == 0:
-       # missing config
-       ret_dict["error"] = "missing database configuration"
-
-       return ret_dict
-
-    # Configure a connection object
-    connection = psycopg2.connect(user =        DS_DB_USER,
-                                  password =    DS_DB_PASSWORD,
-                                  host =        DS_DB_HOST,
-                                  port =        DS_DB_PORT,
-                                  database =    DS_DB_NAME)
-
-    # Test the database connection
-    try:
-        cursor = connection.cursor()
-        # Print PostgreSQL Connection properties
-        print(f"INFO: Connecting to the database with these credentials: {connection.get_dsn_parameters()}\n")
-
-        # Print PostgreSQL version
-        cursor.execute("SELECT version();")
-        record = cursor.fetchone()
-        print(f"INFO: Successfully connected to the database: {record}\n")
-
-    except (Exception, psycopg2.Error) as error :
-        print (f"ERROR: error while connecting to PostgreSQL: {error}")
-        ret_dict["error"] = "error connecting to the database"
-        return ret_dict
-
-    # Do we have a valid state value?
-    if ste not in state_pop:
-        # invalid state parameter
-        ret_dict["error"] = "invalid state parameter: " + ste
-        return ret_dict
-
-    # Do we have a valid date value?
-    if re.match(r"^\d{4}\-\d{2}\-\d{2}", dte) == None:
-        # dte parameter value is not valid
-        ret_dict["error"] = "invalid date parameter: " + dte
-        return ret_dict
-
-    # Query the database
-    sql = "SELECT * FROM state_covid_stats WHERE state = %s AND date = %s"
-    cvd_dict = {}
-    try:
-        cursor.execute(sql, )
-        cvd_row = cursor.fetchone()
-        cvd_dict["new_case"] = cvd_row[3]
-        cvd_dict["data"]     = cvd_row[5]
-
-    except (Exception, psycopg2.Error) as error:
-        ret_dict["error"] = f"error fetching covid data for state: {ste} date: {dte}"
-        return ret_dict
-    
-    # Return results
-    ret_dict["ok"]       = True
-    ret_dict["error"]    = None
-    ret_dict["new_case"] = cvd_dict[0]["new_case"]
-    ret_dict["data"]     = cvd_dict[0]
-    return ret_dict
-
-# Return Covid data for a given state and date from the database
-def req_cdc_covid_dat(ste, dte):
-    """
-    req_cdc_covid_dat return Covid data for a given state and date
-    from the backend data science database
-
-    Parameters:
-        "state": the targeted state (e.g. "CA")
-        "date":  the string date of the covid data requested (format: YYYY-MM-DD)
-
-    Returns:
-        "ok":       boolean indicating a successful request
-        "new_case": new cases logged in the API response
-        "data":     copy of the CDC API response
-        "error":    error message (if applicable)  
-    """
-    # Define a return object
-    ret_dict = {
         "ok":         False,
         "new_case":   None,
         "data":       None,
@@ -191,7 +95,7 @@ def req_cdc_covid_dat(ste, dte):
     DS_DB_PASSWORD  = os.getenv("DS_DB_PASSWORD")
 
     # Missing database configuration?
-    if len(DS_DB_HOST) == 0   or        \
+    if len(DS_DB_HOST) == 0     or      \
        len(DS_DB_NAME) == 0     or      \
        len(DS_DB_USER) == 0     or      \
        len(DS_DB_PASSWORD) == 0:
@@ -230,7 +134,7 @@ def req_cdc_covid_dat(ste, dte):
         return ret_dict
 
     # Do we have a valid date value?
-    if re.match(r"^\d{4}\-\d{2}\-\d{2}", dte) == None:
+    if re.match(r"^\d{4}\-\d{2}\-\d{2}$", dte) == None:
         # dte parameter value is not valid
         ret_dict["error"] = "invalid date parameter: " + dte
         return ret_dict
@@ -255,8 +159,121 @@ def req_cdc_covid_dat(ste, dte):
     ret_dict["data"]     = cvd_dict["data"]
     return ret_dict
 
+# Generate a Covid "score" for a given state
+def gen_covid_score(ste):
+    """
+    gen_covid_score generates a covid score using
+    CDC covid data obtained via a call to
+    the req_cdc_covid_dat function 
+
+    Parameters:
+        "state": the targeted state (e.g. "CA")
+
+    Returns:
+        "ok":       boolean indicating a successful request
+        "score":    the state's covid score (0,1,2)
+        "color":    the state's covid score as a color ("green", "yellow", "red")
+        "data":     CDC covid API data
+        "error":    error message (if applicable)
+    """
+    # Define a return object
+    ret_dict = {
+        "ok":    False,
+        "score": None,
+        "delta": None,
+        "color": None,
+        "data":  None,
+        "error": "an error occurred"
+    }
+
+    # Do we have a valid state value
+    if ste not in state_pop:
+        # invalid state parameter
+        ret_dict["error"] = "invalid date value: " + ste
+        return ret_dict
+
+    # Read configuration into variables from environment variables
+    INT_START         = int(os.getenv("INT_START"))
+    INT_END           = int(os.getenv("INT_END"))
+    THRESHOLD_LOW     = float(os.getenv("THRESHOLD_LOW"))
+    THRESHOLD_HIGH    = float(os.getenv("THRESHOLD_HIGH"))
+
+    # Generate dates for the start and end of the time interval
+    req_try = True
+    err_ctr = 0
+    int_st  = INT_START
+    int_ed  = INT_END
+    while (req_try and err_ctr < 5):
+        req_try = False  # Assume we get an error calling the Covid API
+
+        # Generate the start and end date interval
+        intv_start = datetime.strftime(datetime.today() - timedelta(days=int_st), "%Y-%m-%d")
+        intv_end   = datetime.strftime(datetime.today() - timedelta(days=int_ed), "%Y-%m-%d")
+
+        # Fetch new cases associated with the interval dates
+        intv_start_ncases = req_cdc_covid_dat(ste, intv_start)
+        intv_end_ncases   = req_cdc_covid_dat(ste, intv_end)
+
+        # Error fetching from the Covid API?
+        if not intv_start_ncases["ok"] or not intv_end_ncases["ok"]:
+            # Error occurred, adjust look up period by 1 day and try again
+            req_try = True          # error occurred keep trying
+            err_ctr = err_ctr + 1   # increment the error try counter
+            int_st  = int_st  + 1   # increment the start date lookback value
+            int_ed  = int_ed  + 1   # increment the end date lookback value
+            print("INFO: Covid API request failed. Attempting retry")
+
+    # Outstanding error calling the Covid API?
+    if not intv_start_ncases["ok"] or not intv_end_ncases["ok"]:
+        # yes: can't get Covid data at this time
+        ret_dict["error"] = "error fetching Covid data; no data at this time"
+        return ret_dict
+
+    # Calculate new cases per 100,000 people
+    start_ncases_p100k = float(intv_start_ncases["new_case"])/float(state_pop[ste])*100000
+    end_ncases_p100k   = float(intv_end_ncases["new_case"])/float(state_pop[ste])*100000
+
+    # Check for division by zero (a really small start_ncases_p100k value)
+    # Calculate the delta in new cases per 100000
+    if start_ncases_p100k < .015:
+        # Assume this value of start_ncases_p100k is essentially zero
+        delta = end_ncases_p100k
+    else:
+        delta = (end_ncases_p100k - start_ncases_p100k)/start_ncases_p100k
+
+    ret_dict["delta"] = delta
+
+    # Generate a score
+    if delta < THRESHOLD_LOW:
+        ret_dict["ok"] = True
+        ret_dict["score"] = 0
+        ret_dict["color"] = "green"
+    elif delta < THRESHOLD_HIGH:
+        ret_dict["ok"] = True
+        ret_dict["score"] = 1
+        ret_dict["color"] = "yellow"
+    else:
+        ret_dict["ok"] = True
+        ret_dict["score"] = 2
+        ret_dict["color"] = "red"
+
+    ret_dict["error"] = None
+      
+    # Assign the most recent CDC Covid API data
+    ret_dict["data"] = {"start": intv_start_ncases["data"], "end": intv_end_ncases["data"]}
+
+    # Return 
+    return ret_dict
+
 # Generate score calculations for every state
 def calc_covid_deltas():
+    """
+    calc_covid_deltas generates the numeric delta covid change
+    for each/all states (rather than the covid score)
+
+    Returns a dictionary with key/values:
+        "state": numeric delta covid change (e.g. 0.057, -0.032)
+    """
     ret_map = {}
 
     # Iterate through the set of states
