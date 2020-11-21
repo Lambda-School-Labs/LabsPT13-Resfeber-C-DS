@@ -5,6 +5,7 @@ from fastapi import APIRouter
 import pandas as pd
 from pydantic import BaseModel, Field, validator
 
+
 import os 
 from dotenv import load_dotenv
 import pandas as pd
@@ -33,6 +34,14 @@ class Item(BaseModel):
         """Validate that x1 is a positive number."""
         assert value > 0, f'x1 == {value}, must be > 0'
         return value
+
+
+    class Airbnb_Loc(BaseModel):##TODO
+        """ 
+        This class used to represent the request body
+        when getting info about Airbnb prices
+        """
+        lat: float = Field()
 
 
 @router.post('/predict')
@@ -83,3 +92,6 @@ async def covid_by_state(state: dict):
     new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
+
+
+    @router.post()
