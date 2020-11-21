@@ -77,7 +77,6 @@ def lambda_handler(event, context):
         # yes: the event object has a body element
         # parse the body string into a dict and look for a date parameter
         try:
-            print(f"DEBUG: event['body'] is: {event['body']} with type: {type(event['body'])}")
             tmp_dict = json.loads(event["body"])
             # is a date parameter included in the body?
             if "date" in tmp_dict:
