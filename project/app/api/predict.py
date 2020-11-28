@@ -36,12 +36,16 @@ class Item(BaseModel):
         return value
 
 
-    class Airbnb_Loc(BaseModel):##TODO
+    class Airbnb_Loc(BaseModel):
         """ 
         This class used to represent the request body
         when getting info about Airbnb prices
         """
-        lat: float = Field()
+        lat: float = Field(example=3.2344545)
+        lon: float = Field(example=3.343535)
+        room_type: str = Field(example="Entire home/apt")
+        num_nights: int = Field(example=1)
+
 
 
 @router.post('/predict')
@@ -94,4 +98,4 @@ async def covid_by_state(state: dict):
     return new_cases
 
 
-    @router.post()
+    @router.post()## TODO  # this is where we will put the functio that will get the prices for airbnb
