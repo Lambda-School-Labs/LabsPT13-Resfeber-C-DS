@@ -43,7 +43,7 @@ class Item(BaseModel):
         """
         lat: float = Field(example=3.2344545)
         lon: float = Field(example=3.343535)
-        room_type: str = Field(example="Entire home/apt")
+        room_type: str = Field(example="\"Entire home/apt\" or \"Private room\" or \"Hotel room\" or \"Shared room\"")
         num_nights: int = Field(example=1)
 
 
