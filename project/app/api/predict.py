@@ -98,4 +98,4 @@ async def covid_by_state(state: dict):
     return new_cases
 
 
-    @router.post()## TODO  # this is where we will put the functio that will get the prices for airbnb
+    #@router.post()## TODO  # this is where we will put the functio that will get the prices for airbnb
