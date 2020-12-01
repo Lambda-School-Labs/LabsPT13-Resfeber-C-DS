@@ -128,7 +128,7 @@ async def covid_by_state(state: dict):
     return new_cases
 
 
-@router.post('/airbnb')## TODO  # this is where we will put the functio that will get the prices for airbnb
+@router.post('/airbnb')
 async def airbnb_price(airbnb : Airbnb_Loc):
     """ using the model to make a prediction"""
     # changing to numerical value of room type
@@ -137,5 +137,3 @@ async def airbnb_price(airbnb : Airbnb_Loc):
     # rounding to two decimals
     return round(price, ndigits=2)
 
-if __name__ == "__main__":
-    print(os.path.realpath(path_to_model))
