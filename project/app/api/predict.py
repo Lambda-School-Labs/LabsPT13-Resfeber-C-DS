@@ -1,3 +1,4 @@
+
 import logging
 import random
 
@@ -5,16 +6,25 @@ from fastapi import APIRouter
 import pandas as pd
 from pydantic import BaseModel, Field, validator
 
+
 import os 
 from dotenv import load_dotenv
 import pandas as pd
 import datetime
 from sodapy import Socrata
 from datetime import timedelta
+import warnings
+from joblib import load
 
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+
+path_to_model =  os.path.join(os.path.dirname(__file__), "..", "models", "gradient_boost_model.joblib")
+
+with warnings.catch_warnings():
+      warnings.simplefilter("ignore", category=UserWarning)
+      gradient_boost_model = load(path_to_model)
 
 
 class Item(BaseModel):
@@ -34,6 +44,39 @@ class Item(BaseModel):
         assert value > 0, f'x1 == {value}, must be > 0'
         return value
 
+
+class Airbnb_Loc(BaseModel):
+    """ 
+    This class used to represent the request body
+    when getting info about Airbnb prices
+    """
+    lat: float = Field(example=40.7128)
+    lon: float = Field(example=74.0060)
+    room_type: str = Field(example="Entire home/apt")# or "Private room\" or \"Hotel room\" or \"Shared room\"
+    num_nights: int = Field(example=1)
+
+    def to_df(self):
+        """
+        Convert pydantic object to pandas dataframe with 1 row.
+        """
+        return pd.DataFrame([dict(self)])
+
+    def room_to_num(self, room:str):
+        """
+        This is the function that will make a numerical representation of the 
+        room_type.  This is used to make it so that the room_type
+        feature can be used in the model for predicting.
+
+        """
+    # the string is checked
+        if room == "Private room":
+            return 0
+        if room == "Entire home/apt":
+            return 1
+        if room == "Hotel room":
+            return 2
+        if room == "Shared room":
+            return 3
 
 @router.post('/predict')
 async def predict(item: Item):
@@ -83,3 +126,14 @@ async def covid_by_state(state: dict):
     new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
+
+
+@router.post('/airbnb')
+async def airbnb_price(airbnb : Airbnb_Loc):
+    """ using the model to make a prediction"""
+    # changing to numerical value of room type
+    room_type = airbnb.room_to_num(airbnb.room_type)
+    price = gradient_boost_model.predict(pd.DataFrame({"lat": airbnb.lat, "lon": airbnb.lon, "room_type": room_type, "num_nights": airbnb.num_nights}, index=[0]))[0]
+    # rounding to two decimals
+    return round(price, ndigits=2)
+
