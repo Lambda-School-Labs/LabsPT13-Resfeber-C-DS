@@ -16,6 +16,9 @@ import warnings
 from joblib import load
 
 
+from app.airbnb_helper_files.worker import return_avg_price
+
+
 log = logging.getLogger(__name__)
 router = APIRouter()
 #C:\Users\porte\Richard_python\lambda\labs\LabsPT13-Resfeber-C-DS\project\app
@@ -131,9 +134,10 @@ async def covid_by_state(state: dict):
 @router.post('/airbnb')
 async def airbnb_price(airbnb : Airbnb_Loc):
     """ using the model to make a prediction"""
-    # changing to numerical value of room type
-    room_type = airbnb.room_to_num(airbnb.room_type)
-    price = gradient_boost_model.predict(pd.DataFrame({"lat": airbnb.lat, "lon": airbnb.lon, "room_type": room_type, "num_nights": airbnb.num_nights}, index=[0]))[0]
-    # rounding to two decimals
-    return round(price, ndigits=2)
+    # # changing to numerical value of room type
+    # room_type = airbnb.room_to_num(airbnb.room_type)
+    # price = gradient_boost_model.predict(pd.DataFrame({"lat": airbnb.lat, "lon": airbnb.lon, "room_type": room_type, "num_nights": airbnb.num_nights}, index=[0]))[0]
+    # # rounding to two decimals
+    # return round(price, ndigits=2)
+    return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, num_nights=airbnb.num_nights)
 
