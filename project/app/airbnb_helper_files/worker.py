@@ -17,10 +17,12 @@ MULTIPLIER = 4
 
 # the variables to connect to the database
 load_dotenv()
-username = os.getenv("user_name")
-password = os.getenv("password")
-host = os.getenv("host")
-database = os.getenv("database")
+username = str(os.getenv("DS_DB_USER"))
+password = str(os.getenv("DS_DB_PASSWORD"))
+host = str(os.getenv("DS_DB_HOST"))
+database = str(os.getenv("DS_DB_NAME"))
+
+
 
 
 path_to_model = os.path.join(os.path.dirname(__file__),"..", "models", "gradient_boost_model.joblib")
