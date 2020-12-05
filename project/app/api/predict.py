@@ -13,7 +13,7 @@ import datetime
 from sodapy import Socrata
 from datetime import timedelta
 
-from .dbsession import DBSession
+from app.api.dbsession import DBSession
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -35,20 +35,19 @@ class Item(BaseModel):
         assert value > 0, f'x1 == {value}, must be > 0'
         return value
 
-# Test creating a db connection
+# Create a database session object
 db_sess = DBSession()
-# Validate the database connection details
-valEnvVars = db_sess.valEnvVars()
-if valEnvVars != None:
-    # error: missing some database environment variables
-    print("error: " + valEnvVars)
+
 # Connect to the database
-db_sess.connect()
-if db_sess.isConnectedFlg:
-    # grab a database connection
-    db_conn = db_sess.get_connection()
+db_conn_attempt = db_sess.connect()
+
+# Determine if any connection errors occurred
+if db_conn_attempt["error"] == None:
+    # no errors connecting, assign the connection object for use
+    db_conn = db_conn_attempt["value"]
 else:
-    print("error: database connection failed")
+    # a connection error has occurred
+    log.error("error attempting to connect to the database: {err_str}".format(err_str=db_conn_attempt["error"]))
 
 @router.get('/db_test')
 async def db_test():
