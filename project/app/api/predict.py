@@ -4,6 +4,7 @@ import random
 from fastapi import APIRouter
 import pandas as pd
 from pydantic import BaseModel, Field, validator
+import psycopg2
 
 import os 
 from dotenv import load_dotenv
@@ -12,10 +13,10 @@ import datetime
 from sodapy import Socrata
 from datetime import timedelta
 
+from .dbsession import DBSession
 
 log = logging.getLogger(__name__)
 router = APIRouter()
-
 
 class Item(BaseModel):
     """Use this data model to parse the request body JSON."""
@@ -34,6 +35,28 @@ class Item(BaseModel):
         assert value > 0, f'x1 == {value}, must be > 0'
         return value
 
+# Test creating a db connection
+db_sess = DBSession()
+# Validate the database connection details
+valEnvVars = db_sess.valEnvVars()
+if valEnvVars != None:
+    # error: missing some database environment variables
+    print("error: " + valEnvVars)
+# Connect to the database
+db_sess.connect()
+if db_sess.isConnectedFlg:
+    # grab a database connection
+    db_conn = db_sess.get_connection()
+else:
+    print("error: database connection failed")
+
+@router.get('/db_test')
+async def db_test():
+    """
+    db_test tests the db session object's connection 
+    to the Postgres database
+    """
+    return db_sess.test_connection()
 
 @router.post('/predict')
 async def predict(item: Item):
