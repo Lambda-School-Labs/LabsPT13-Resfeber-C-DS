@@ -1,7 +1,7 @@
 import logging
 import random
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 import pandas as pd
 from pydantic import BaseModel, Field, validator
 import psycopg2
@@ -14,6 +14,7 @@ from sodapy import Socrata
 from datetime import timedelta
 
 from app.api.dbsession import DBSession
+import app.api.covid_score as scr
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -84,24 +85,28 @@ async def predict(item: Item):
         'probability': y_pred_proba
     }
 
+# Route to return a covid score to the caller
+@router.get('/covid_score_state/{state}')
+async def get_covid_score_state(state: str):
+    """
+    Return the 'Covid Score' for the given state (e.g. 'CA')
 
-@router.post('/state_covid')
-async def covid_by_state(state: dict):
-    MY_APP_TOKEN = os.getenv("COVID_API")
-    client = Socrata('data.cdc.gov',MY_APP_TOKEN)
-    q = '''
-    SELECT * 
-    ORDER BY submission_date DESC
-    LIMIT 1000
-    '''
-    results = client.get("9mfq-cb36", query = q)
-    df = pd.DataFrame.from_records(results)
-    state_requested = pd.DataFrame([state])
-    state = state_requested.iloc[0][0]
+    ### Request Parameter
+        - state (e.g. CA)
 
-    last_week = str(datetime.date.today() - timedelta(days = 7))
+    ### Response
+        - `ok`:       boolean indicating a successful request
+        - `score`:    the state's covid score (0,1,2)
+        - `color`:    the state's covid score as a color ("green", "yellow", "red")
+        - `data`:     CDC covid API data
+        - `error`:    error message (if applicable)
+    """
+    # Generate a covid score
+    ret_dict = scr.gen_covid_score(db_conn, state)
 
-    # filter df for above info and get the total
-    new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
-    new_cases= new['new_case'].astype('float').sum()
-    return new_cases
+    # Any errors generating the covid score
+    if not ret_dict["ok"]:
+        # an error occurred generating the covid score
+        raise HTTPException(status_code=500, detail="an error occurred: " + ret_dict["error"])
+
+    return ret_dict
