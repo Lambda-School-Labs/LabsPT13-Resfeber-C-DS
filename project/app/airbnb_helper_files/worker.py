@@ -136,17 +136,17 @@ def query(bounding_coord, loc :GeoLocation, connection, num_nights, room_type, a
     return sql_ob1
 
 
-def return_avg_price(lat, lon, room_type, num_nights):
+def return_avg_price(lat, lon, room_type, num_nights, conn):
     """
     This function is to find the price average for those items that it pulls 
-    from the query."""
+    from the query.
+
+    conn: the database connection
+
+    """
     # getting the connection
    
-    try:
-        conn = psycopg2.connect(dbname=database, password=password, host=host, user=username)
-    except:
-        print("There was a problem with the connection to the database for the airbnb", file=sys.stderr)
-        exit(1)
+    
     # counter will be used to make a change to the distance to look will start at 2 miles and the go to 5 
     # if still no results will then use the model
     the_counter = 1
@@ -200,7 +200,7 @@ def return_avg_price(lat, lon, room_type, num_nights):
         # room_type being changed to a numerical value to use in the model
         print(f"Info:  Using the model to get airbnb price." ,file=sys.stderr)
         room_type = room_to_num(room_type)
-        price = gradient_boost_model.predict(pd.DataFrame({"lat":lat, "lon": lon, "room_type": room_type, "num_nights":num_nights},
+        price = gradient_boost_model.predict(pd.DataFrame({"lat":lat, "lon": lon, "room_type": room_type, "num_nights":1},
                                                     index=[0]))[0] # used to get the value out of the prediction array
         
     return round(price, ndigits=2)
