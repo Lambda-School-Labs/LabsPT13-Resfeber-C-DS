@@ -16,8 +16,7 @@ import sys
 # The multiplier is used to expand the search query radius for the second search
 MULTIPLIER = 4 
 
-# value to hold the db connection as a global variable
-connection = None
+
 
 
 
@@ -140,9 +139,8 @@ def return_avg_price(lat, lon, room_type, num_nights, conn):
     conn: the database connection
 
     """
-    # saving the connection as a global variable to be able to use in if name == main in the portion below.
-    if not connection:
-        connection = conn
+    
+    
    
     
     # counter will be used to make a change to the distance to look will start at 2 miles and the go to 5 
