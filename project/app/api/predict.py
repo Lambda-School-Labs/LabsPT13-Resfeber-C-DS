@@ -19,7 +19,7 @@ from joblib import load
 
 from app.airbnb_helper_files.worker import return_avg_price
 
-from api import gas_price
+from app.api import gas_price
 
 
 from app.api.dbsession import DBSession
