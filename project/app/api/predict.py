@@ -13,8 +13,12 @@ import datetime
 from sodapy import Socrata
 from datetime import timedelta
 
+from api import gas_price
+
+
 from app.api.dbsession import DBSession
 import app.api.covid_score as scr
+
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -108,5 +112,59 @@ async def get_covid_score_state(state: str):
     if not ret_dict["ok"]:
         # an error occurred generating the covid score
         raise HTTPException(status_code=500, detail="an error occurred: " + ret_dict["error"])
-
+        
     return ret_dict
+  
+
+@router.post('/state_covid')
+async def covid_by_state(state: dict):
+    MY_APP_TOKEN = os.getenv("COVID_API")
+    client = Socrata('data.cdc.gov',MY_APP_TOKEN)
+    q = '''
+    SELECT * 
+    ORDER BY submission_date DESC
+    LIMIT 1000
+    '''
+    results = client.get("9mfq-cb36", query = q)
+    df = pd.DataFrame.from_records(results)
+    state_requested = pd.DataFrame([state])
+    state = state_requested.iloc[0][0]
+
+    last_week = str(datetime.date.today() - timedelta(days = 7))
+
+    # filter df for above info and get the total
+    new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
+    new_cases= new['new_case'].astype('float').sum()
+    return new_cases
+
+@router.get('/fuel/{ste}')
+def get_gas_price_state(ste):
+    """
+    Get the states current gas price.
+
+    """
+    # Set up an HTTP connection object
+    MY_APP_TOKEN = os.getenv("GAS_API")
+    conn = http.client.HTTPSConnection("api.collectapi.com")
+    headers = {
+        'content-type': "application/json",
+        'authorization': "MY_APP_TOKEN"
+    }
+
+
+    # Execute the HTTP GET request
+    conn.request("GET", "/gasPrice/stateUsaPrice?state=" + ste , headers=headers)
+    res = conn.getresponse()
+    data = res.read()
+
+    # Convert the byte data to a json string
+    data_json = data.decode("utf-8")
+    # Load the json string into a python dict
+    data_dict = json.loads(data_json)
+
+
+    # Return the state level gas prices
+    return data_dict['result']['state']
+
+    
+
