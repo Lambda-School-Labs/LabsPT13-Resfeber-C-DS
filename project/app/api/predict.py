@@ -191,7 +191,8 @@ async def airbnb_price(airbnb : Airbnb_Loc):
     # price = gradient_boost_model.predict(pd.DataFrame({"lat": airbnb.lat, "lon": airbnb.lon, "room_type": room_type, "num_nights": airbnb.num_nights}, index=[0]))[0]
     # # rounding to two decimals
     # return round(price, ndigits=2)
-    return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, num_nights=airbnb.num_nights, db_connection)
+    return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, 
+                            num_nights=airbnb.num_nights, conn = db_conn_attempt["value"])
 
 @router.get('/fuel/{ste}')
 def get_gas_price_state(ste):

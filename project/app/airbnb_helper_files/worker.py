@@ -6,6 +6,7 @@ from dotenv import load_dotenv # these are the settings for the connection to da
 from psycopg2 import sql
 import psycopg2
 import os
+
 from app.airbnb_helper_files.geo import GeoLocation
 from joblib import load
 import pandas as pd
@@ -15,13 +16,8 @@ import sys
 # The multiplier is used to expand the search query radius for the second search
 MULTIPLIER = 4 
 
-# the variables to connect to the database
-load_dotenv()
-username = str(os.getenv("DS_DB_USER"))
-password = str(os.getenv("DS_DB_PASSWORD"))
-host = str(os.getenv("DS_DB_HOST"))
-database = str(os.getenv("DS_DB_NAME"))
-
+# value to hold the db connection as a global variable
+connection = None
 
 
 
@@ -144,7 +140,9 @@ def return_avg_price(lat, lon, room_type, num_nights, conn):
     conn: the database connection
 
     """
-    # getting the connection
+    # saving the connection as a global variable to be able to use in if name == main in the portion below.
+    if not connection:
+        connection = conn
    
     
     # counter will be used to make a change to the distance to look will start at 2 miles and the go to 5 
@@ -212,6 +210,6 @@ if __name__ == "__main__":
     
     
     
-    price = return_avg_price(lat=37.3488827, lon= -108.5859265, room_type="Entire home/apt", num_nights=1)
+    price = return_avg_price(lat=37.3488827, lon= -108.5859265, room_type="Entire home/apt", num_nights=1, conn=connection)
 
     print(f"The price is the following: {price}")
