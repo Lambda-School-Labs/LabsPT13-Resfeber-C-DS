@@ -11,7 +11,7 @@ import pandas as pd
 import datetime
 from sodapy import Socrata
 from datetime import timedelta
-
+from api import gas_price
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -84,7 +84,7 @@ async def covid_by_state(state: dict):
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
 
-@router.get('/fuel')
+@router.get('/fuel/{ste}')
 def get_gas_price_state(ste):
     """
     Get the states current gas price.
