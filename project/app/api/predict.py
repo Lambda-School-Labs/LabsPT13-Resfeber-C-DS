@@ -6,12 +6,18 @@ import pandas as pd
 from pydantic import BaseModel, Field, validator
 import psycopg2
 
+
 import os 
 from dotenv import load_dotenv
 import pandas as pd
 import datetime
 from sodapy import Socrata
 from datetime import timedelta
+import warnings
+from joblib import load
+
+
+from app.airbnb_helper_files.worker import return_avg_price
 
 from api import gas_price
 
@@ -22,6 +28,13 @@ import app.api.covid_score as scr
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+#C:\Users\porte\Richard_python\lambda\labs\LabsPT13-Resfeber-C-DS\project\app
+# loading the model into this file
+path_to_model =  os.path.join(os.path.dirname(__file__), "..", "models", "gradient_boost_model.joblib")
+
+with warnings.catch_warnings():
+      warnings.simplefilter("ignore", category=UserWarning)
+      gradient_boost_model = load(path_to_model)
 
 class Item(BaseModel):
     """Use this data model to parse the request body JSON."""
@@ -61,6 +74,39 @@ async def db_test():
     to the Postgres database
     """
     return db_sess.test_connection()
+
+class Airbnb_Loc(BaseModel):
+    """ 
+    This class used to represent the request body
+    when getting info about Airbnb prices
+    """
+    lat: float = Field(example=40.7128)
+    lon: float = Field(example=74.0060)
+    room_type: str = Field(example="Entire home/apt")# or "Private room\" or \"Hotel room\" or \"Shared room\"
+    num_nights: int = Field(example=1)
+
+    def to_df(self):
+        """
+        Convert pydantic object to pandas dataframe with 1 row.
+        """
+        return pd.DataFrame([dict(self)])
+
+    def room_to_num(self, room:str):
+        """
+        This is the function that will make a numerical representation of the 
+        room_type.  This is used to make it so that the room_type
+        feature can be used in the model for predicting.
+
+        """
+    # the string is checked
+        if room == "Private room":
+            return 0
+        if room == "Entire home/apt":
+            return 1
+        if room == "Hotel room":
+            return 2
+        if room == "Shared room":
+            return 3
 
 @router.post('/predict')
 async def predict(item: Item):
@@ -137,6 +183,16 @@ async def covid_by_state(state: dict):
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
 
+@router.post('/airbnb')
+async def airbnb_price(airbnb : Airbnb_Loc):
+    """ using the model to make a prediction"""
+    # # changing to numerical value of room type
+    # room_type = airbnb.room_to_num(airbnb.room_type)
+    # price = gradient_boost_model.predict(pd.DataFrame({"lat": airbnb.lat, "lon": airbnb.lon, "room_type": room_type, "num_nights": airbnb.num_nights}, index=[0]))[0]
+    # # rounding to two decimals
+    # return round(price, ndigits=2)
+    return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, num_nights=airbnb.num_nights)
+
 @router.get('/fuel/{ste}')
 def get_gas_price_state(ste):
     """
@@ -165,6 +221,3 @@ def get_gas_price_state(ste):
 
     # Return the state level gas prices
     return data_dict['result']['state']
-
-    
-
