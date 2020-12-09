@@ -17,6 +17,12 @@ import sys
 MULTIPLIER = 4 
 
 
+# the variables to connect to the database
+load_dotenv()
+username = str(os.getenv("DS_DB_USER"))
+password = str(os.getenv("DS_DB_PASSWORD"))
+host = str(os.getenv("DS_DB_HOST"))
+database = str(os.getenv("DS_DB_NAME"))
 
 
 
@@ -131,7 +137,7 @@ def query(bounding_coord, loc :GeoLocation, connection, num_nights, room_type, a
     return sql_ob1
 
 
-def return_avg_price(lat, lon, room_type, num_nights, conn):
+def return_avg_price(lat, lon, room_type, num_nights):
     """
     This function is to find the price average for those items that it pulls 
     from the query.
@@ -140,8 +146,14 @@ def return_avg_price(lat, lon, room_type, num_nights, conn):
 
     """
     
+    try:
+        conn = psycopg2.connect(dbname=database, password=password, host=host, user=username)
+    except:
+        print("There was a problem with the connection to the database for the airbnb", file=sys.stderr)
+        exit(1)
+    # counter will be used to make a change to the distance to look will start at 2 miles and the go to 5 
+    # if still no results will then use the model
     
-   
     
     # counter will be used to make a change to the distance to look will start at 2 miles and the go to 5 
     # if still no results will then use the model
@@ -208,6 +220,6 @@ if __name__ == "__main__":
     
     
     
-    price = return_avg_price(lat=37.3488827, lon= -108.5859265, room_type="Entire home/apt", num_nights=1, conn=connection)
+    price = return_avg_price(lat=37.3488827, lon= -108.5859265, room_type="Entire home/apt", num_nights=1)
 
     print(f"The price is the following: {price}")

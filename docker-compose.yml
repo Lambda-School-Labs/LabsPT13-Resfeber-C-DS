@@ -18,4 +18,5 @@ services:
       - INT_END
       - THRESHOLD_LOW
       - THRESHOLD_HIGH
+      - COVID_API
 

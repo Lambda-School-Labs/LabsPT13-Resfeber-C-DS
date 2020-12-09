@@ -109,6 +109,10 @@ class Airbnb_Loc(BaseModel):
         if room == "Shared room":
             return 3
 
+class covid_state(BaseModel):
+    state: str = Field(example="CA")
+
+    
 @router.post('/predict')
 async def predict(item: Item):
     """
@@ -164,8 +168,8 @@ async def get_covid_score_state(state: str):
   
 
 @router.post('/state_covid')
-async def covid_by_state(state: dict):
-    MY_APP_TOKEN = os.getenv("COVID_API")
+async def covid_by_state(state: covid_state):
+    MY_APP_TOKEN = str(os.getenv("COVID_API"))
     client = Socrata('data.cdc.gov',MY_APP_TOKEN)
     q = '''
     SELECT * 
@@ -174,13 +178,13 @@ async def covid_by_state(state: dict):
     '''
     results = client.get("9mfq-cb36", query = q)
     df = pd.DataFrame.from_records(results)
-    state_requested = pd.DataFrame([state])
-    state = state_requested.iloc[0][0]
+    # state_requested = pd.DataFrame([state])
+    # state = state_requested.iloc[0]
 
     last_week = str(datetime.date.today() - timedelta(days = 7))
 
     # filter df for above info and get the total
-    new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
+    new= df[(df['state'] == state.state) & (df['submission_date'] > last_week)]
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
 
@@ -193,7 +197,7 @@ async def airbnb_price(airbnb : Airbnb_Loc):
     # # rounding to two decimals
     # return round(price, ndigits=2)
     return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, 
-                            num_nights=airbnb.num_nights, conn = db_conn_attempt["value"])
+                            num_nights=airbnb.num_nights)
 
 @router.get('/fuel/{ste}')
 def get_gas_price_state(ste):
