@@ -16,7 +16,8 @@ from datetime import timedelta
 import warnings
 from joblib import load
 
-
+import http.client
+import json
 from app.airbnb_helper_files.worker import return_avg_price
 
 from app.api import gas_price
@@ -201,11 +202,11 @@ def get_gas_price_state(ste):
 
     """
     # Set up an HTTP connection object
-    MY_APP_TOKEN = os.getenv("GAS_API")
+    MY_APP_TOKEN = str(os.getenv("GAS_API"))
     conn = http.client.HTTPSConnection("api.collectapi.com")
     headers = {
         'content-type': "application/json",
-        'authorization': "MY_APP_TOKEN"
+        'authorization': MY_APP_TOKEN
     }
 
 
@@ -217,8 +218,12 @@ def get_gas_price_state(ste):
     # Convert the byte data to a json string
     data_json = data.decode("utf-8")
     # Load the json string into a python dict
+    
     data_dict = json.loads(data_json)
 
 
     # Return the state level gas prices
     return data_dict['result']['state']
+
+
+
