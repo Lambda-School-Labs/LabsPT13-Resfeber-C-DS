@@ -16,10 +16,11 @@ from datetime import timedelta
 import warnings
 from joblib import load
 
-
+import http.client
+import json
 from app.airbnb_helper_files.worker import return_avg_price
 
-from api import gas_price
+from app.api import gas_price
 
 
 from app.api.dbsession import DBSession
@@ -108,6 +109,10 @@ class Airbnb_Loc(BaseModel):
         if room == "Shared room":
             return 3
 
+class covid_state(BaseModel):
+    state: str = Field(example="CA")
+
+    
 @router.post('/predict')
 async def predict(item: Item):
     """
@@ -163,8 +168,8 @@ async def get_covid_score_state(state: str):
   
 
 @router.post('/state_covid')
-async def covid_by_state(state: dict):
-    MY_APP_TOKEN = os.getenv("COVID_API")
+async def covid_by_state(state: covid_state):
+    MY_APP_TOKEN = str(os.getenv("COVID_API"))
     client = Socrata('data.cdc.gov',MY_APP_TOKEN)
     q = '''
     SELECT * 
@@ -173,13 +178,13 @@ async def covid_by_state(state: dict):
     '''
     results = client.get("9mfq-cb36", query = q)
     df = pd.DataFrame.from_records(results)
-    state_requested = pd.DataFrame([state])
-    state = state_requested.iloc[0][0]
+    # state_requested = pd.DataFrame([state])
+    # state = state_requested.iloc[0]
 
     last_week = str(datetime.date.today() - timedelta(days = 7))
 
     # filter df for above info and get the total
-    new= df[(df['state'] == state) & (df['submission_date'] > last_week)]
+    new= df[(df['state'] == state.state) & (df['submission_date'] > last_week)]
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
 
@@ -191,7 +196,8 @@ async def airbnb_price(airbnb : Airbnb_Loc):
     # price = gradient_boost_model.predict(pd.DataFrame({"lat": airbnb.lat, "lon": airbnb.lon, "room_type": room_type, "num_nights": airbnb.num_nights}, index=[0]))[0]
     # # rounding to two decimals
     # return round(price, ndigits=2)
-    return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, num_nights=airbnb.num_nights)
+    return return_avg_price(lat=airbnb.lat, lon=airbnb.lon, room_type=airbnb.room_type, 
+                            num_nights=airbnb.num_nights)
 
 @router.get('/fuel/{ste}')
 def get_gas_price_state(ste):
@@ -200,11 +206,11 @@ def get_gas_price_state(ste):
 
     """
     # Set up an HTTP connection object
-    MY_APP_TOKEN = os.getenv("GAS_API")
+    MY_APP_TOKEN = str(os.getenv("GAS_API"))
     conn = http.client.HTTPSConnection("api.collectapi.com")
     headers = {
         'content-type': "application/json",
-        'authorization': "MY_APP_TOKEN"
+        'authorization': MY_APP_TOKEN
     }
 
 
@@ -216,8 +222,12 @@ def get_gas_price_state(ste):
     # Convert the byte data to a json string
     data_json = data.decode("utf-8")
     # Load the json string into a python dict
+    
     data_dict = json.loads(data_json)
 
 
     # Return the state level gas prices
     return data_dict['result']['state']
+
+
+

@@ -13,4 +13,10 @@ services:
       - DS_DB_HOST
       - DS_DB_NAME
       - DS_DB_PORT
+      - GAS_API
+      - INT_START
+      - INT_END
+      - THRESHOLD_LOW
+      - THRESHOLD_HIGH
+      - COVID_API
 
