@@ -43,26 +43,8 @@ class DBSession:
         self.valEnvVarsFlg  = False     # flag: validated env var values
         self.isConnectedFlg = False     # flag: successful db connection
 
-        # Validate the database connection environment variables
-        if len(self.DS_DB_USER) == 0:
-            # DS_DB_USER is missing
-            self.valEnvVarErr.append("DS_DB_USER environment variable is missing")
-            
-        if len(self.DS_DB_PASSWORD) == 0:
-            # DS_DB_PASSWORD is missing
-            self.valEnvVarErr.append("DS_DB_PASSWORD environment variable is missing")
-            
-        if len(self.DS_DB_HOST) == 0:
-            # DS_DB_HOST is missing
-            self.valEnvVarErr.append("DS_DB_HOST environment variable is missing")
-            
-        if len(self.DS_DB_NAME) == 0:
-            # DS_DB_NAME is missing
-            self.valEnvVarErr.append("DS_DB_NAME environment variable is missing")
-            
-        if len(self.DS_DB_PORT) == 0:
-            # DS_DB_PORT is missing
-            self.valEnvVarErr.append("DS_DB_PORT environment variable is missing")
+        # Validate the database related environment variables
+        self.val_env_vars()
             
         # Are there any validation errors?
         if len(self.valEnvVarErr) != 0:
@@ -165,5 +147,35 @@ class DBSession:
         """
         if self.dbconn != None:
             self.dbconn.close()
+
+        return
+
+    # val_env_vars validates database related environment variables
+    def val_env_vars(self):
+        """
+        val_env_vars validates the object's environment variable
+        values that are used to drive the database connection
+        and assigns errors to self.valEnvVarErr
+        """
+        # Validate the database connection environment variables
+        if len(self.DS_DB_USER) == 0:
+            # DS_DB_USER is missing
+            self.valEnvVarErr.append("DS_DB_USER environment variable is missing")
+            
+        if len(self.DS_DB_PASSWORD) == 0:
+            # DS_DB_PASSWORD is missing
+            self.valEnvVarErr.append("DS_DB_PASSWORD environment variable is missing")
+            
+        if len(self.DS_DB_HOST) == 0:
+            # DS_DB_HOST is missing
+            self.valEnvVarErr.append("DS_DB_HOST environment variable is missing")
+            
+        if len(self.DS_DB_NAME) == 0:
+            # DS_DB_NAME is missing
+            self.valEnvVarErr.append("DS_DB_NAME environment variable is missing")
+            
+        if len(self.DS_DB_PORT) == 0:
+            # DS_DB_PORT is missing
+            self.valEnvVarErr.append("DS_DB_PORT environment variable is missing")
 
         return

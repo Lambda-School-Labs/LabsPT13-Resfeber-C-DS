@@ -32,16 +32,16 @@ def req_cdc_covid_dat(db_conn, ste, dte):
         "error":      "an error occurred"
     }
 
-    # Do we have a valid state value?
-    if ste not in STATE_POP:
-        # invalid state parameter
-        ret_dict["error"] = "invalid state parameter: " + ste
+    # Validate the passed state parameter
+    err = val_state(ste)
+    if err is not None:
+        ret_dict["error"] = err
         return ret_dict
 
-    # Do we have a valid date value?
-    if re.match(r"^\d{4}\-\d{2}\-\d{2}$", dte) == None:
-        # dte parameter value is not valid
-        ret_dict["error"] = "invalid date parameter: " + dte
+    # Validate the passed date parameter
+    err = val_date(dte)
+    if err is not None:
+        ret_dict["error"] = err
         return ret_dict
 
     # Query the database
@@ -93,10 +93,10 @@ def gen_covid_score(db_conn, ste):
         "error": "an error occurred"
     }
 
-    # Do we have a valid state value
-    if ste not in STATE_POP:
-        # invalid state parameter
-        ret_dict["error"] = "invalid date value: " + ste
+    # Validate the passed state parameter
+    err = val_state(ste)
+    if err is not None:
+        ret_dict["error"] = err
         return ret_dict
 
     # Read configuration into variables from environment variables
@@ -150,20 +150,11 @@ def gen_covid_score(db_conn, ste):
 
     ret_dict["delta"] = delta
 
-    # Generate a score
-    if delta < THRESHOLD_LOW:
-        ret_dict["ok"] = True
-        ret_dict["score"] = 0
-        ret_dict["color"] = "green"
-    elif delta < THRESHOLD_HIGH:
-        ret_dict["ok"] = True
-        ret_dict["score"] = 1
-        ret_dict["color"] = "yellow"
-    else:
-        ret_dict["ok"] = True
-        ret_dict["score"] = 2
-        ret_dict["color"] = "red"
-
+    # Generate a covid score
+    scr_dict          = calc_covid_score(delta, THRESHOLD_LOW, THRESHOLD_HIGH)
+    ret_dict["ok"]    = scr_dict["ok"]
+    ret_dict["score"] = scr_dict["score"]
+    ret_dict["color"] = scr_dict["color"]
     ret_dict["error"] = None
       
     # Assign the most recent CDC Covid API data
@@ -202,3 +193,54 @@ def calc_covid_deltas(db_conn):
     # Return the dictionary mapping states (e.g "GA") to their 
     # delta calculation (e.g. 0.041)
     return ret_map
+
+# Validate the state value
+def val_state(ste):
+    """
+    Validate the passed value as a US state (e.g. 'CO')
+    """
+    # Do we have a valid state value?
+    if ste not in STATE_POP:
+        # invalid state parameter
+        return "invalid state parameter: " + ste
+
+    return None
+
+# Validate the date value
+def val_date(dte):
+    """
+    Validate the passed value as a date (e.g. '2021-01-01')
+    """
+    # Do we have a valid date value?
+    if re.match(r"^\d{4}\-\d{2}\-\d{2}$", dte) == None:
+        # dte parameter value is not valid
+        return "invalid date parameter: " + dte
+
+    return None
+
+# Generate a covid "score"
+def calc_covid_score(delta, lo, hi):
+    """
+    Calcuate a covid score given the numeric change
+    and both a low and high scoring threshold
+    """
+    ret_dict = {
+        "ok": False,
+        "score": None,
+        "color": None
+    }
+
+    if delta < lo:
+        ret_dict["ok"] = True
+        ret_dict["score"] = 0
+        ret_dict["color"] = "green"
+    elif delta < hi:
+        ret_dict["ok"] = True
+        ret_dict["score"] = 1
+        ret_dict["color"] = "yellow"
+    else:
+        ret_dict["ok"] = True
+        ret_dict["score"] = 2
+        ret_dict["color"] = "red"
+
+    return ret_dict
