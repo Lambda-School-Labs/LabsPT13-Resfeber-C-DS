@@ -6,7 +6,7 @@ from app.api import predict, viz
 
 app = FastAPI(
     title='LABSPT13-Resfeber-C-DS-API',
-    description='Replace this placeholder text',
+    description='Current end points for covid score, airbnb pricing and fuel price by state.',
     version='0.1',
     docs_url='/',
 )
