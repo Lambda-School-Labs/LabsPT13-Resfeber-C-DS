@@ -4,8 +4,10 @@ import datetime
 from sodapy import Socrata
 from datetime import timedelta
 from app.api.constants import STATE_POP, statecodes
-from app.api.viz_prep import viz_readiness
+from app.api.viz_prep import viz_readiness, viz_readiness_covid_score
 import plotly.graph_objects as go
+import os 
+from dotenv import load_dotenv
 
 
 router = APIRouter()
@@ -54,4 +56,19 @@ async def viz_covid(statecode: str):
     JSON string to render with [react-plotly.js](https://plotly.com/javascript/react/
 
     """
+    df3 = viz_readiness_covid_score(STATE_POP)
+
+    fig = go.Figure(data=go.Choropleth(
+    locations=df3['index'], # Spatial coordinates
+    z = df3['covid_score'].astype(float), # Data to be color-coded
+    locationmode = 'USA-states', # set of locations match entries in `locations`
+    colorscale = 'Reds',
+    colorbar_title = "Covid Score: Statistical Difference in Covid Cases",
+    ))
+
+    fig.update_layout(
+        title_text = 'Covid Score by State',
+        geo_scope='usa', # limite map scope to USA
+    )
+
     return fig.to_json()
