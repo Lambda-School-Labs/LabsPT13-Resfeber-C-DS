@@ -52,3 +52,6 @@ async def viz_covid(statecode: str):
 
     ### Response
     JSON string to render with [react-plotly.js](https://plotly.com/javascript/react/
+
+    """
+    return fig.to_json()
