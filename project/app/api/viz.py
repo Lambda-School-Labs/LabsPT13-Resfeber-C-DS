@@ -24,7 +24,7 @@ async def viz(statecode: str):
     JSON string to render with [react-plotly.js](https://plotly.com/javascript/react/) 
     """
 
-    df3 = viz_readiness(STATE_POP, state_codes)
+    df3 = viz_readiness(STATE_POP, statecodes)
 
     fig = go.Figure(data=go.Choropleth(
     locations=df3['index'], # Spatial coordinates
