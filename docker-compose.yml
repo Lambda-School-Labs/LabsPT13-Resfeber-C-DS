@@ -6,7 +6,7 @@ services:
     volumes:
       - ./project:/usr/src/app
     ports:
-      - 8000:8000
+      - 80:8000
     environment: 
       - DS_DB_USER
       - DS_DB_PASSWORD
