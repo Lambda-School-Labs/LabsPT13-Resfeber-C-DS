@@ -4,7 +4,7 @@ from sodapy import Socrata
 from datetime import timedelta
 from app.api import constants
 from app.api.dbsession import DBSession
-from app.api.covid_score import calc_covid_deltas
+from app.api.covid_score import calc_covid_deltas_db
 import os
 
 def viz_readiness(state_pops, state_codes):
@@ -56,7 +56,8 @@ def viz_readiness_covid_score(state_pops):
   # a connection error has occurred
       log.error("error attempting to connect to the database: {err_str}".format(err_str=db_conn_attempt["error"]))
 
-  covid_score_dict = calc_covid_deltas(db_conn)
+  # covid_score_dict = calc_covid_deltas(db_conn)
+  covid_score_dict = calc_covid_deltas_db(db_conn)
 
   df = pd.DataFrame.from_dict(covid_score_dict, orient='index')
   df = df.reset_index()
