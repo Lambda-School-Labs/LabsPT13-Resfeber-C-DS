@@ -44,17 +44,12 @@ async def viz(statecode: str):
     return fig.to_json()
 
 @router.get('/viz/covid_score')
-async def viz_covid(statecode: str):
+async def viz_covid():
     """
     Visualize covid score based off of covid cases reported in the last 14 days to the CDC
-    
-    ### Path Parameter
-    `statecode`: The [USPS 2 letter abbreviation](https://en.wikipedia.org/wiki/List_of_U.S._state_and_territory_abbreviations#Table) 
-    (case insensitive) for any of the 50 states or the District of Columbia.
 
     ### Response
     JSON string to render with [react-plotly.js](https://plotly.com/javascript/react/
-
     """
     df3 = viz_readiness_covid_score(STATE_POP)
 
