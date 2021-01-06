@@ -1,14 +1,22 @@
 from fastapi import APIRouter, HTTPException
 import pandas as pd
-import plotly.express as px
+import datetime
+from sodapy import Socrata
+from datetime import timedelta
+from app.api.constants import STATE_POP, statecodes
+from app.api.viz_prep import viz_readiness, viz_readiness_covid_score
+import plotly.graph_objects as go
+import os 
+from dotenv import load_dotenv
+
 
 router = APIRouter()
 
 
-@router.get('/viz/{statecode}')
+@router.get('/viz/covid_pop')
 async def viz(statecode: str):
     """
-    Visualize state unemployment rate from [Federal Reserve Economic Data](https://fred.stlouisfed.org/) 📈
+    Visualize covid cases reported to the CDC in last 14 days per state population 
     
     ### Path Parameter
     `statecode`: The [USPS 2 letter abbreviation](https://en.wikipedia.org/wiki/List_of_U.S._state_and_territory_abbreviations#Table) 
@@ -18,37 +26,44 @@ async def viz(statecode: str):
     JSON string to render with [react-plotly.js](https://plotly.com/javascript/react/) 
     """
 
-    # Validate the state code
-    statecodes = {
-        'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 
-        'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 
-        'DE': 'Delaware', 'DC': 'District of Columbia', 'FL': 'Florida', 
-        'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 
-        'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas', 'KY': 'Kentucky', 
-        'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland', 
-        'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 
-        'MS': 'Mississippi', 'MO': 'Missouri', 'MT': 'Montana', 
-        'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 
-        'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York', 
-        'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 
-        'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 
-        'RI': 'Rhode Island', 'SC': 'South Carolina', 'SD': 'South Dakota', 
-        'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont', 
-        'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 
-        'WI': 'Wisconsin', 'WY': 'Wyoming'
-    }
-    statecode = statecode.upper()
-    if statecode not in statecodes:
-        raise HTTPException(status_code=404, detail=f'State code {statecode} not found')
+    df3 = viz_readiness(STATE_POP, statecodes)
 
-    # Get the state's unemployment rate data from FRED
-    url = f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={statecode}UR'
-    df = pd.read_csv(url, parse_dates=['DATE'])
-    df.columns = ['Date', 'Percent']
+    fig = go.Figure(data=go.Choropleth(
+    locations=df3['index'], # Spatial coordinates
+    z = df3['covid_case_per_pop'].astype(float), # Data to be color-coded
+    locationmode = 'USA-states', # set of locations match entries in `locations`
+    colorscale = 'Reds',
+    colorbar_title = "Covid by Population",
+    ))
 
-    # Make Plotly figure
-    statename = statecodes[statecode]
-    fig = px.line(df, x='Date', y='Percent', title=f'{statename} Unemployment Rate')
+    fig.update_layout(
+        title_text = 'Current US Covid Cases by State',
+        geo_scope='usa', # limite map scope to USA
+    )
 
-    # Return Plotly figure as JSON string
+    return fig.to_json()
+
+@router.get('/viz/covid_score')
+async def viz_covid():
+    """
+    Visualize covid score based off of covid cases reported in the last 14 days to the CDC
+
+    ### Response
+    JSON string to render with [react-plotly.js](https://plotly.com/javascript/react/
+    """
+    df3 = viz_readiness_covid_score(STATE_POP)
+
+    fig = go.Figure(data=go.Choropleth(
+    locations=df3['index'], # Spatial coordinates
+    z = df3['covid_score'].astype(float), # Data to be color-coded
+    locationmode = 'USA-states', # set of locations match entries in `locations`
+    colorscale = 'Reds',
+    colorbar_title = "Covid Score: Statistical Difference in Covid Cases",
+    ))
+
+    fig.update_layout(
+        title_text = 'Covid Score by State',
+        geo_scope='usa', # limite map scope to USA
+    )
+
     return fig.to_json()

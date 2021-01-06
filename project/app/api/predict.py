@@ -203,4 +203,3 @@ def get_gas_price_state(ste):
     return data_dict['result']['state']
 
 
-
