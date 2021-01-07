@@ -4,6 +4,8 @@ import re
 import psycopg2
 import datetime
 from datetime import datetime, timedelta
+import pytz
+import json
 
 from app.api.constants import STATE_POP
 
@@ -244,3 +246,45 @@ def calc_covid_score(delta, lo, hi):
         ret_dict["color"] = "red"
 
     return ret_dict
+
+# Fetch today's calc_covid_deltas from the database if it exists
+# If the database record does not exist, call the calc_covid_deltas function
+# and generate the covid deltas values for every state
+def calc_covid_deltas_db(db_conn):
+    """
+    calc_covid_deltas_db returns the covid case deltas over an interval (defined by env vars)
+    for each US state
+
+    The logic attempts to find a pre-generated value from the database.  If it does not exist
+    then the state delta values are calculated using daily state level covid data resident
+    in the database by calling the calc_covid_deltas function
+
+    Parameters:
+        "db_conn":  database connection object
+
+    Returns a dictionary with key/values:
+        "state": numeric delta covid change (e.g. 0.057, -0.032)
+    """
+    # Get today's date
+    today_PT = datetime.now(pytz.timezone('US/Pacific')).strftime("%Y-%m-%d")
+
+    # Query the database to see if we have `calc_covid_deltas` results saved to the database for today
+    sql = "SELECT date, json_doc FROM state_covid_deltas_daily WHERE date = %s"
+    cvd_dict = {}
+    try:
+        # Attempt the select query and grab the row's 'is_valid' and 'json_doc' 
+        cursor = db_conn.cursor()
+        qry_data = (today_PT, )
+        cursor.execute(sql, qry_data)
+        cvd_row = cursor.fetchone()
+        cvd_dict["date"]     = cvd_row[0]
+        cvd_dict["json_obj"] = cvd_row[1]
+
+    except (Exception, psycopg2.Error) as error:
+        # Error querying for calc_covid_deltas values stored in the database
+        print(f"INFO: error querying pre-generated calc_covid_deltas values stored in the database. See: {error}")
+        print("INFO: generating calc_covid_deltas values")
+        return calc_covid_deltas(db_conn)
+
+    # Have valid results. Return the results (dict object)
+    return cvd_dict["json_obj"]

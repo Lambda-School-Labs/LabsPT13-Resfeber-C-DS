@@ -6,13 +6,13 @@ import pandas as pd
 from pydantic import BaseModel, Field, validator
 import psycopg2
 
-
 import os 
 from dotenv import load_dotenv
 import pandas as pd
 import datetime
 from sodapy import Socrata
-from datetime import timedelta
+from datetime import datetime, timedelta
+import pytz
 import warnings
 from joblib import load
 
@@ -21,7 +21,6 @@ import json
 from app.airbnb_helper_files.worker import return_avg_price
 
 from app.api import gas_price
-
 
 from app.api.dbsession import DBSession
 import app.api.covid_score as scr
@@ -161,6 +160,62 @@ async def covid_by_state(state: covid_state):
     new_cases= new['new_case'].astype('float').sum()
     return new_cases
 
+@router.post('/gen_covid_deltas')
+async def gen_covid_deltas():
+    """
+    Generate covid deltas for all states and save to the database in
+    table `state_covid_deltas_daily` as a pre-generated value to be used 
+    downstream
+
+    ### Response
+        - `ok`:       boolean indicating a successful request
+        - `date`:     today's date which is associated with this data
+        - `data`:     the covid deltas data stored to the database
+        - `error`:    error message (if applicable)
+    """
+    ret_dict = {
+        "ok":    False,
+        "date":  None,
+        "data":  None,
+        "error": "no data to report"
+    }
+
+    # Generate the covid deltas data for each state  
+    covid_deltas_data = scr.calc_covid_deltas(db_conn)
+
+    # Validated that some data was returned
+    if len(covid_deltas_data) < 50:
+        # Have less than 50 entries in data, assume an error occurred
+        ret_dict["error"] = "invalid data - less than 50 state entries"
+        ret_dict["data"]  = covid_deltas_data
+        return ret_dict
+
+    # Insert the deltas data into the database
+    # Get today's date
+    today_PT = datetime.now(pytz.timezone('US/Pacific')).strftime("%Y-%m-%d")
+
+    # Insert the pre-generated data into the database
+    sql = "INSERT INTO state_covid_deltas_daily (date, is_valid, json_doc) VALUES (%s, TRUE, %s) ON CONFLICT (date) DO NOTHING"
+    try:
+        # Attempt the insert
+        cursor = db_conn.cursor()
+        cursor.execute(sql, (today_PT, json.dumps(covid_deltas_data)))
+        # commit the db changes
+        db_conn.commit()
+
+    except (Exception, psycopg2.Error) as error:
+        # Error inserting calc_covid_deltas values into the database
+        print(f"INFO: error inserting calc_covid_deltas values stored in the database. See: {error}")
+        ret_dict["error"] = "error inserting into the database; see: " + str(error)
+        return ret_dict
+
+    # Data successfully inserted into the database
+    ret_dict["ok"]    = True
+    ret_dict["date"]  = today_PT
+    ret_dict["data"]  = covid_deltas_data
+    ret_dict["error"] = None
+    return ret_dict
+
 @router.post('/airbnb')
 async def airbnb_price(airbnb : Airbnb_Loc):
     """ using the model to make a prediction"""
@@ -201,6 +256,5 @@ def get_gas_price_state(ste):
 
     # Return the state level gas prices
     return data_dict['result']['state']
-
 
 
